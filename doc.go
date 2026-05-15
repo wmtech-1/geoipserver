@@ -3,12 +3,8 @@
 // found in the LICENSE file.
 
 // Package freegeoip provides an API for searching the geolocation of IP
-// addresses. It uses a database that can be either a local file or a
-// remote resource from a URL.
+// addresses. It uses local database files for both city and ASN lookups.
 //
-// Local databases are monitored by fsnotify and reloaded when the file is
-// either updated or overwritten.
-//
-// Remote databases are automatically downloaded and updated in background
-// so you can focus on using the API and not managing the database.
+// Local databases are monitored by fsnotify and reloaded automatically
+// when the file is updated or overwritten.
 package freegeoip
