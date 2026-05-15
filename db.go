@@ -9,7 +9,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -116,11 +116,11 @@ func (db *DB) newReader(dbfile string) (*maxminddb.Reader, string, error) {
 	gzf, err := gzip.NewReader(f)
 	if err == nil {
 		defer gzf.Close()
-		data, err = ioutil.ReadAll(gzf)
+		data, err = io.ReadAll(gzf)
 	} else {
 		// Not gzipped — reopen and read raw.
 		f.Seek(0, 0)
-		data, err = ioutil.ReadAll(f)
+		data, err = io.ReadAll(f)
 	}
 	if err != nil {
 		return nil, "", err
