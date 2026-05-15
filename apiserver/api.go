@@ -16,7 +16,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -200,7 +199,7 @@ func (f *apiHandler) iplookup(writer writerFunc) http.HandlerFunc {
 		f.asnDB.Lookup(ip, &asnQ)
 		
 		w.Header().Set("X-Database-Date", f.db.Date().Format(http.TimeFormat))
-		resp := q.Record(ip, r.Header.Get("Accept-Language"))
+		resp := q.Record(ip, r.Header.Get("Accept-Language"), &asnQ)
 		writer(w, r, resp)
 	}
 }
@@ -238,7 +237,7 @@ type geoipQuery struct {
 	freegeoip.DefaultQuery
 }
 
-func (q *geoipQuery) Record(ip net.IP, lang string) *responseRecord {
+func (q *geoipQuery) Record(ip net.IP, lang string, asn *asnQuery) *responseRecord {
 	lang = parseAcceptLanguage(lang, q.Country.Names)
 
 	r := &responseRecord{
