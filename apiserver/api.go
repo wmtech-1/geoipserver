@@ -380,7 +380,7 @@ func newRateLimiter(c *Config) (*httprl.RateLimiter, error) {
 		mc.Timeout = c.MemcacheTimeout
 		backend = memcacherl.New(mc)
 	default:
-		return nil, fmt.Errorf("unsupported backend: %q" + c.RateLimitBackend)
+		return nil, fmt.Errorf("unsupported backend: %q", c.RateLimitBackend)
 	}
 	rl := &httprl.RateLimiter{
 		Backend:  backend,
