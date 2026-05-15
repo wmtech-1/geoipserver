@@ -47,8 +47,6 @@ type Config struct {
 	RateLimitLimit      uint64        `envconfig:"QUOTA_MAX"`
 	RateLimitInterval   time.Duration `envconfig:"QUOTA_INTERVAL"`
 	InternalServerAddr  string        `envconfig:"INTERNAL_SERVER"`
-	NewrelicName        string        `envconfig:"NEWRELIC_NAME"`
-	NewrelicKey         string        `envconfig:"NEWRELIC_KEY"`
 
 	errorLog  *log.Logger
 	accessLog *log.Logger
@@ -118,8 +116,6 @@ func (c *Config) AddFlags(fs *flag.FlagSet) {
 	fs.Uint64Var(&c.RateLimitLimit, "quota-max", c.RateLimitLimit, "Max requests per source IP per interval; set 0 to turn quotas off")
 	fs.DurationVar(&c.RateLimitInterval, "quota-interval", c.RateLimitInterval, "Quota expiration interval, per source IP querying the API")
 	fs.StringVar(&c.InternalServerAddr, "internal-server", c.InternalServerAddr, "Address in form of ip:port to listen on for metrics and pprof")
-	fs.StringVar(&c.NewrelicName, "newrelic-name", c.NewrelicName, "Newrepic APM application name")
-	fs.StringVar(&c.NewrelicKey, "newrelic-key", c.NewrelicKey, "Nerelic API key")
 }
 
 func (c *Config) logWriter() io.Writer {
