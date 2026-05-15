@@ -31,6 +31,8 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/wmtech-1/geoipserver"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type apiHandler struct {
@@ -94,11 +96,11 @@ func (f *apiHandler) config(mc *httpmux.Config) error {
 }
 
 func newPublicDirHandler(path string) http.HandlerFunc {
-	handler := http.NotFoundHandler()
-	if path != "" {
-		handler = http.FileServer(http.Dir(path))
-	}
-	return prometheus.InstrumentHandler("frontend", handler)
+    handler := http.NotFoundHandler()
+    if path != "" {
+        handler = http.FileServer(http.Dir(path))
+    }
+    return handler.ServeHTTP
 }
 
 func hstsMiddleware(policy string) httpmux.MiddlewareFunc {
@@ -150,8 +152,7 @@ func clientMetricsMiddleware(db *freegeoip.DB) httpmux.MiddlewareFunc {
 type writerFunc func(w http.ResponseWriter, r *http.Request, d *responseRecord)
 
 func (f *apiHandler) register(name string, writer writerFunc) http.HandlerFunc {
-    h := prometheus.InstrumentHandler(name, f.iplookup(writer))
-    return f.cors.Handler(h).ServeHTTP
+    return f.cors.Handler(f.iplookup(writer)).ServeHTTP
 }
 
 func (f *apiHandler) iplookup(writer writerFunc) http.HandlerFunc {
