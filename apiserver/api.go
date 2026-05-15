@@ -241,22 +241,26 @@ func (q *geoipQuery) Record(ip net.IP, lang string, asn *asnQuery) *responseReco
 	lang = parseAcceptLanguage(lang, q.Country.Names)
 
 	r := &responseRecord{
-		IP:          ip.String(),
-		CountryCode: q.Country.ISOCode,
-		CountryName: q.Country.Names[lang],
-		City:        q.City.Names[lang],
-		ZipCode:     q.Postal.Code,
-		TimeZone:    q.Location.TimeZone,
-		Latitude:    roundFloat(q.Location.Latitude, .5, 4),
-		Longitude:   roundFloat(q.Location.Longitude, .5, 4),
-		MetroCode:   q.Location.MetroCode,
+		IP:            ip.String(),
+		ASN:           fmt.Sprintf("AS%d", asn.AutonomousSystemNumber),
+		ASName:        asn.AutonomousSystemOrganization,
+		CountryCode:   q.Country.ISOCode,
+		Country:       q.Country.Names[lang],
+		RegionCode:    "",
+		RegionName:    "",
+		City:          q.City.Names[lang],
+		ZipCode:       q.Postal.Code,
+		TimeZone:      q.Location.TimeZone,
+		Latitude:      roundFloat(q.Location.Latitude, .5, 4),
+		Longitude:     roundFloat(q.Location.Longitude, .5, 4),
+		MetroCode:     q.Location.MetroCode,
+		ContinentCode: q.Continent.ISOCode,
+		Continent:     q.Continent.Names[lang],
 	}
 	if len(q.Region) > 0 {
 		r.RegionCode = q.Region[0].ISOCode
 		r.RegionName = q.Region[0].Names[lang]
 	}
-	r.ASN    = asn.AutonomousSystemNumber
-	r.ASNOrg = asn.AutonomousSystemOrganization
 	return r
 }
 
@@ -297,20 +301,22 @@ func roundFloat(val float64, roundOn float64, places int) (newVal float64) {
 }
 
 type responseRecord struct {
-	XMLName     xml.Name `xml:"Response" json:"-"`
-	IP          string   `json:"ip"`
-	CountryCode string   `json:"country_code"`
-	CountryName string   `json:"country_name"`
-	RegionCode  string   `json:"region_code"`
-	RegionName  string   `json:"region_name"`
-	City        string   `json:"city"`
-	ZipCode     string   `json:"zip_code"`
-	TimeZone    string   `json:"time_zone"`
-	Latitude    float64  `json:"latitude"`
-	Longitude   float64  `json:"longitude"`
-	MetroCode   uint     `json:"metro_code"`
-	ASN         uint     `json:"asn"`
-	ASNOrg      string   `json:"asn_org"`
+	XMLName       xml.Name `xml:"Response" json:"-"`
+	IP            string   `json:"ip"`
+	ASN           string   `json:"asn"`
+	ASName        string   `json:"as_name"`
+	CountryCode   string   `json:"country_code"`
+	Country       string   `json:"country"`
+	RegionCode    string   `json:"region_code"`
+	RegionName    string   `json:"region_name"`
+	City          string   `json:"city"`
+	ZipCode       string   `json:"zip_code"`
+	TimeZone      string   `json:"time_zone"`
+	Latitude      float64  `json:"latitude"`
+	Longitude     float64  `json:"longitude"`
+	MetroCode     uint     `json:"metro_code"`
+	ContinentCode string   `json:"continent_code"`
+	Continent     string   `json:"continent"`
 }
 
 func (rr *responseRecord) String() string {
@@ -319,8 +325,10 @@ func (rr *responseRecord) String() string {
 	w.UseCRLF = true
 	w.Write([]string{
 		rr.IP,
+		rr.ASN,
+		rr.ASName,
 		rr.CountryCode,
-		rr.CountryName,
+		rr.Country,
 		rr.RegionCode,
 		rr.RegionName,
 		rr.City,
@@ -329,8 +337,8 @@ func (rr *responseRecord) String() string {
 		strconv.FormatFloat(rr.Latitude, 'f', 4, 64),
 		strconv.FormatFloat(rr.Longitude, 'f', 4, 64),
 		strconv.Itoa(int(rr.MetroCode)),
-		strconv.Itoa(int(rr.ASN)),
-		rr.ASNOrg,
+		rr.ContinentCode,
+		rr.Continent,
 	})
 	w.Flush()
 	return b.String()
