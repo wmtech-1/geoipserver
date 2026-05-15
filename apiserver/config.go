@@ -35,6 +35,7 @@ type Config struct {
 	WriteTimeout        time.Duration `envconfig:"WRITE_TIMEOUT"`
 	PublicDir           string        `envconfig:"PUBLIC"`
 	DB                  string        `envconfig:"DB"`
+	ASNDB               string        `envconfig:"asn_db"`
 	UpdateInterval      time.Duration `envconfig:"UPDATE_INTERVAL"`
 	RetryInterval       time.Duration `envconfig:"RETRY_INTERVAL"`
 	UseXForwardedFor    bool          `envconfig:"USE_X_FORWARDED_FOR"`
