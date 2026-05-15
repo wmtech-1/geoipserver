@@ -11,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/fiorix/freegeoip"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -36,8 +35,6 @@ type Config struct {
 	PublicDir           string        `envconfig:"PUBLIC"`
 	DB                  string        `envconfig:"DB"`
 	ASNDB               string        `envconfig:"asn_db"`
-	UpdateInterval      time.Duration `envconfig:"UPDATE_INTERVAL"`
-	RetryInterval       time.Duration `envconfig:"RETRY_INTERVAL"`
 	UseXForwardedFor    bool          `envconfig:"USE_X_FORWARDED_FOR"`
 	Silent              bool          `envconfig:"SILENT"`
 	LogToStdout         bool          `envconfig:"LOGTOSTDOUT"`
@@ -50,10 +47,6 @@ type Config struct {
 	RateLimitLimit      uint64        `envconfig:"QUOTA_MAX"`
 	RateLimitInterval   time.Duration `envconfig:"QUOTA_INTERVAL"`
 	InternalServerAddr  string        `envconfig:"INTERNAL_SERVER"`
-	UpdatesHost         string        `envconfig:"UPDATES_HOST"`
-	LicenseKey          string        `envconfig:"LICENSE_KEY"`
-	UserID              string        `envconfig:"USER_ID"`
-	ProductID           string        `envconfig:"PRODUCT_ID"`
 	NewrelicName        string        `envconfig:"NEWRELIC_NAME"`
 	NewrelicKey         string        `envconfig:"NEWRELIC_KEY"`
 
@@ -79,10 +72,8 @@ func NewConfig() *Config {
 		CORSOrigin:          "*",
 		ReadTimeout:         30 * time.Second,
 		WriteTimeout:        15 * time.Second,
-		DB:                  freegeoip.MaxMindDB,
+		DB:                  "/usr/share/GeoIP/GeoLite2-City.mmdb",
 		ASNDB:               "/usr/share/GeoIP/GeoLite2-ASN.mmdb",
-		UpdateInterval:      24 * time.Hour,
-		RetryInterval:       2 * time.Hour,
 		LogTimestamp:        true,
 		RedisAddr:           "localhost:6379",
 		RedisTimeout:        time.Second,
@@ -90,8 +81,6 @@ func NewConfig() *Config {
 		MemcacheTimeout:     time.Second,
 		RateLimitBackend:    "redis",
 		RateLimitInterval:   time.Hour,
-		UpdatesHost:         "updates.maxmind.com",
-		ProductID:           "GeoIP2-City",
 	}
 }
 
@@ -117,8 +106,6 @@ func (c *Config) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.PublicDir, "public", c.PublicDir, "Public directory to serve at the {prefix}/ endpoint")
 	fs.StringVar(&c.DB, "db", c.DB, "IP database file or URL")
 	fs.StringVar(&c.ASNDB, "asn-db", c.ASNDB, "Path to MaxMind GeoLite2-ASN database file")
-	fs.DurationVar(&c.UpdateInterval, "update", c.UpdateInterval, "Database update check interval")
-	fs.DurationVar(&c.RetryInterval, "retry", c.RetryInterval, "Max time to wait before retrying to download database")
 	fs.BoolVar(&c.UseXForwardedFor, "use-x-forwarded-for", c.UseXForwardedFor, "Use the X-Forwarded-For header when available (e.g. behind proxy)")
 	fs.BoolVar(&c.Silent, "silent", c.Silent, "Disable HTTP and HTTPS log request details")
 	fs.BoolVar(&c.LogToStdout, "logtostdout", c.LogToStdout, "Log to stdout instead of stderr")
@@ -131,10 +118,6 @@ func (c *Config) AddFlags(fs *flag.FlagSet) {
 	fs.Uint64Var(&c.RateLimitLimit, "quota-max", c.RateLimitLimit, "Max requests per source IP per interval; set 0 to turn quotas off")
 	fs.DurationVar(&c.RateLimitInterval, "quota-interval", c.RateLimitInterval, "Quota expiration interval, per source IP querying the API")
 	fs.StringVar(&c.InternalServerAddr, "internal-server", c.InternalServerAddr, "Address in form of ip:port to listen on for metrics and pprof")
-	fs.StringVar(&c.UpdatesHost, "updates-host", c.UpdatesHost, "MaxMind Updates Host")
-	fs.StringVar(&c.LicenseKey, "license-key", c.LicenseKey, "MaxMind License Key (requires user-id)")
-	fs.StringVar(&c.UserID, "user-id", c.UserID, "MaxMind User ID (requires license-key)")
-	fs.StringVar(&c.ProductID, "product-id", c.ProductID, "MaxMind Product ID (e.g GeoIP2-City)")
 	fs.StringVar(&c.NewrelicName, "newrelic-name", c.NewrelicName, "Newrepic APM application name")
 	fs.StringVar(&c.NewrelicKey, "newrelic-key", c.NewrelicKey, "Nerelic API key")
 }
