@@ -37,6 +37,7 @@ import (
 
 type apiHandler struct {
 	db    *freegeoip.DB
+	asnDB *freegeoip.DB
 	conf  *Config
 	cors  *cors.Cors
 	nrapp newrelic.Application
@@ -45,16 +46,20 @@ type apiHandler struct {
 // NewHandler creates an http handler for the freegeoip server that
 // can be embedded in other servers.
 func NewHandler(c *Config) (http.Handler, error) {
-	db, err := openDB(c)
+	db, err := openDB(c.DB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %v", err)
+	}
+	asnDB, err := openDB(c.ASNDB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open ASN database: %v", err)
 	}
 	cf := cors.New(cors.Options{
 		AllowedOrigins:   strings.Split(c.CORSOrigin, ","),
 		AllowedMethods:   []string{"GET"},
 		AllowCredentials: true,
 	})
-	f := &apiHandler{db: db, conf: c, cors: cf}
+	f := &apiHandler{db: db, asnDB: asnDB, conf: c, cors: cf}
 	mc := httpmux.DefaultConfig
 	if err := f.config(&mc); err != nil {
 		return nil, err
@@ -64,6 +69,7 @@ func NewHandler(c *Config) (http.Handler, error) {
 	mux.GET("/xml/*host", f.register("xml", xmlWriter))
 	mux.GET("/json/*host", f.register("json", jsonWriter))
 	go watchEvents(db)
+	go watchEvents(asnDB)
 	return mux, nil
 }
 
@@ -188,6 +194,11 @@ func (f *apiHandler) iplookup(writer writerFunc) http.HandlerFunc {
 			http.Error(w, "Try again later.", http.StatusServiceUnavailable)
 			return
 		}
+		
+		// ASN lookup — non-fatal if it fails
+		var asnQ asnQuery
+		f.asnDB.Lookup(ip, &asnQ)
+		
 		w.Header().Set("X-Database-Date", f.db.Date().Format(http.TimeFormat))
 		resp := q.Record(ip, r.Header.Get("Accept-Language"))
 		writer(w, r, resp)
@@ -245,6 +256,8 @@ func (q *geoipQuery) Record(ip net.IP, lang string) *responseRecord {
 		r.RegionCode = q.Region[0].ISOCode
 		r.RegionName = q.Region[0].Names[lang]
 	}
+	r.ASN    = asn.AutonomousSystemNumber
+	r.ASNOrg = asn.AutonomousSystemOrganization
 	return r
 }
 
@@ -297,6 +310,8 @@ type responseRecord struct {
 	Latitude    float64  `json:"latitude"`
 	Longitude   float64  `json:"longitude"`
 	MetroCode   uint     `json:"metro_code"`
+	ASN         uint     `json:"asn"`
+	ASNOrg      string   `json:"asn_org"`
 }
 
 func (rr *responseRecord) String() string {
@@ -315,33 +330,16 @@ func (rr *responseRecord) String() string {
 		strconv.FormatFloat(rr.Latitude, 'f', 4, 64),
 		strconv.FormatFloat(rr.Longitude, 'f', 4, 64),
 		strconv.Itoa(int(rr.MetroCode)),
+		strconv.Itoa(int(rr.ASN)),
+		rr.ASNOrg,
 	})
 	w.Flush()
 	return b.String()
 }
 
 // openDB opens and returns the IP database file or URL.
-func openDB(c *Config) (*freegeoip.DB, error) {
-	// This is a paid product. Get the updates URL.
-	if len(c.UserID) > 0 && len(c.LicenseKey) > 0 {
-		var err error
-		c.DB, err = freegeoip.MaxMindUpdateURL(
-			c.UpdatesHost,
-			c.ProductID,
-			c.UserID,
-			c.LicenseKey,
-		)
-		if err != nil {
-			return nil, err
-		}
-		log.Println("Using updates URL:", c.DB)
-	}
-
-	u, err := url.Parse(c.DB)
-	if err != nil || len(u.Scheme) == 0 {
-		return freegeoip.Open(c.DB)
-	}
-	return freegeoip.OpenURL(c.DB, c.UpdateInterval, c.RetryInterval)
+func openDB(path string) (*freegeoip.DB, error) {
+	return freegeoip.Open(path)
 }
 
 // watchEvents logs and collect metrics of database events.
@@ -393,4 +391,9 @@ func newRateLimiter(c *Config) (*httprl.RateLimiter, error) {
 		//Policy:   httprl.AllowPolicy,
 	}
 	return rl, nil
+}
+
+type asnQuery struct {
+	AutonomousSystemNumber       uint   `maxminddb:"autonomous_system_number"`
+	AutonomousSystemOrganization string `maxminddb:"autonomous_system_organization"`
 }
