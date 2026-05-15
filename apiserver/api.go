@@ -26,7 +26,6 @@ import (
 	"github.com/go-web/httprl"
 	"github.com/go-web/httprl/memcacherl"
 	"github.com/go-web/httprl/redisrl"
-	newrelic "github.com/newrelic/go-agent"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/cors"
 	"golang.org/x/text/language"
@@ -39,7 +38,6 @@ type apiHandler struct {
 	asnDB *freegeoip.DB
 	conf  *Config
 	cors  *cors.Cors
-	nrapp newrelic.Application
 }
 
 // NewHandler creates an http handler for the freegeoip server that
@@ -91,14 +89,6 @@ func (f *apiHandler) config(mc *httpmux.Config) error {
 			return fmt.Errorf("failed to create rate limiter: %v", err)
 		}
 		mc.Use(rl.Handle)
-	}
-	if f.conf.NewrelicName != "" && f.conf.NewrelicKey != "" {
-		config := newrelic.NewConfig(f.conf.NewrelicName, f.conf.NewrelicKey)
-		app, err := newrelic.NewApplication(config)
-		if err != nil {
-			return fmt.Errorf("failed to create newrelic application: {name: %v, key: %v}", f.conf.NewrelicName, f.conf.NewrelicKey)
-		}
-		f.nrapp = app
 	}
 	return nil
 }
@@ -160,14 +150,8 @@ func clientMetricsMiddleware(db *freegeoip.DB) httpmux.MiddlewareFunc {
 type writerFunc func(w http.ResponseWriter, r *http.Request, d *responseRecord)
 
 func (f *apiHandler) register(name string, writer writerFunc) http.HandlerFunc {
-	var h http.Handler
-	if f.nrapp == nil {
-		h = prometheus.InstrumentHandler(name, f.iplookup(writer))
-	} else {
-		h = prometheus.InstrumentHandler(newrelic.WrapHandle(f.nrapp, name, f.iplookup(writer)))
-	}
-
-	return f.cors.Handler(h).ServeHTTP
+    h := prometheus.InstrumentHandler(name, f.iplookup(writer))
+    return f.cors.Handler(h).ServeHTTP
 }
 
 func (f *apiHandler) iplookup(writer writerFunc) http.HandlerFunc {
