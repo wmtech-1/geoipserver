@@ -20,25 +20,28 @@ import (
 	"github.com/oschwald/maxminddb-golang"
 )
 
-// ErrUnavailable is returned by DB.Lookup when the database is not yet open.
+// ErrUnavailable may be returned by DB.Lookup when the database
+// is not yet available.
 var ErrUnavailable = errors.New("no database available")
 
 // DB is the IP geolocation database.
 type DB struct {
-	file        string
-	checksum    string
-	reader      *maxminddb.Reader
-	notifyQuit  chan struct{}
-	notifyOpen  chan string
-	notifyError chan error
-	notifyInfo  chan string
-	closed      bool
-	lastUpdated time.Time
-	mu          sync.RWMutex
+	file        string            // Database file name.
+	checksum    string            // MD5 of the unzipped database file.
+	reader      *maxminddb.Reader // Actual db object.
+	notifyQuit  chan struct{}      // Stop watch goroutine.
+	notifyOpen  chan string        // Notify when a db file is open.
+	notifyError chan error         // Notify when an error occurs.
+	notifyInfo  chan string        // Notify random actions for logging.
+	closed      bool              // Mark this db as closed.
+	lastUpdated time.Time         // Last time the db was updated.
+	mu          sync.RWMutex      // Protects all the above.
 }
 
 // Open creates and initializes a DB from a local file.
-// The file is monitored by fsnotify and reloaded automatically when changed.
+//
+// The database file is monitored by fsnotify and automatically
+// reloads when the file is updated or overwritten.
 func Open(dsn string) (*DB, error) {
 	db := &DB{
 		file:        dsn,
@@ -87,7 +90,7 @@ func (db *DB) watchEvents(watcher *fsnotify.Watcher) {
 			watcher.Close()
 			return
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second) // Suppress high-rate events.
 	}
 }
 
@@ -149,26 +152,76 @@ func (db *DB) setReader(reader *maxminddb.Reader, modtime time.Time, checksum st
 	}
 }
 
-// Date returns the UTC time the database file was last modified.
+// Date returns the UTC date the database file was last modified.
+// If no database file has been opened the behaviour of Date is undefined.
 func (db *DB) Date() time.Time {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 	return db.lastUpdated
 }
 
-func (db *DB) NotifyClose() <-chan struct{}  { return db.notifyQuit }
-func (db *DB) NotifyOpen() <-chan string     { return db.notifyOpen }
-func (db *DB) NotifyError() <-chan error     { return db.notifyError }
-func (db *DB) NotifyInfo() <-chan string     { return db.notifyInfo }
+// NotifyClose returns a channel that is closed when the database is closed.
+func (db *DB) NotifyClose() <-chan struct{} {
+	return db.notifyQuit
+}
 
-// Lookup performs a database lookup of the given IP address.
+// NotifyOpen returns a channel that notifies when a new database is
+// loaded or reloaded.
+func (db *DB) NotifyOpen() (filename <-chan string) {
+	return db.notifyOpen
+}
+
+// NotifyError returns a channel that notifies when an error occurs
+// while reloading a DB.
+func (db *DB) NotifyError() (errChan <-chan error) {
+	return db.notifyError
+}
+
+// NotifyInfo returns a channel that notifies informational messages.
+func (db *DB) NotifyInfo() <-chan string {
+	return db.notifyInfo
+}
+
+// Lookup performs a database lookup of the given IP address, and stores
+// the response into the result value. The result value must be a struct
+// with specific fields and tags as described here:
+// https://godoc.org/github.com/oschwald/maxminddb-golang#Reader.Lookup
+//
+// See the DefaultQuery for an example of the result struct.
 func (db *DB) Lookup(addr net.IP, result interface{}) error {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	if db.reader == nil {
-		return ErrUnavailable
+	if db.reader != nil {
+		return db.reader.Lookup(addr, result)
 	}
-	return db.reader.Lookup(addr, result)
+	return ErrUnavailable
+}
+
+// DefaultQuery is the default query used for database lookups.
+type DefaultQuery struct {
+	Continent struct {
+		Names map[string]string `maxminddb:"names"`
+	} `maxminddb:"continent"`
+	Country struct {
+		ISOCode string            `maxminddb:"iso_code"`
+		Names   map[string]string `maxminddb:"names"`
+	} `maxminddb:"country"`
+	Region []struct {
+		ISOCode string            `maxminddb:"iso_code"`
+		Names   map[string]string `maxminddb:"names"`
+	} `maxminddb:"subdivisions"`
+	City struct {
+		Names map[string]string `maxminddb:"names"`
+	} `maxminddb:"city"`
+	Location struct {
+		Latitude  float64 `maxminddb:"latitude"`
+		Longitude float64 `maxminddb:"longitude"`
+		MetroCode uint    `maxminddb:"metro_code"`
+		TimeZone  string  `maxminddb:"time_zone"`
+	} `maxminddb:"location"`
+	Postal struct {
+		Code string `maxminddb:"code"`
+	} `maxminddb:"postal"`
 }
 
 // Close closes the database.
@@ -178,9 +231,12 @@ func (db *DB) Close() {
 	if !db.closed {
 		db.closed = true
 		close(db.notifyQuit)
-		if db.reader != nil {
-			db.reader.Close()
-			db.reader = nil
-		}
+		close(db.notifyOpen)
+		close(db.notifyError)
+		close(db.notifyInfo)
+	}
+	if db.reader != nil {
+		db.reader.Close()
+		db.reader = nil
 	}
 }
