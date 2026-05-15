@@ -26,13 +26,10 @@ import (
 	"github.com/go-web/httprl"
 	"github.com/go-web/httprl/memcacherl"
 	"github.com/go-web/httprl/redisrl"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/cors"
 	"golang.org/x/text/language"
 
 	"github.com/wmtech-1/geoipserver"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type apiHandler struct {
