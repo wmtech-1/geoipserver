@@ -30,7 +30,7 @@ func Run() {
 	sv := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
 	if *sv {
-		fmt.Printf("freegeoip %s\n", Version)
+		fmt.Printf("geoipserver %s\n", Version)
 		return
 	}
 	if c.LogToStdout {
