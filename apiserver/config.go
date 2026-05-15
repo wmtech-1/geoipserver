@@ -34,7 +34,7 @@ type Config struct {
 	WriteTimeout        time.Duration `envconfig:"WRITE_TIMEOUT"`
 	PublicDir           string        `envconfig:"PUBLIC"`
 	DB                  string        `envconfig:"DB"`
-	ASNDB               string        `envconfig:"asn_db"`
+	ASNDB               string        `envconfig:"ASN_DB"`
 	UseXForwardedFor    bool          `envconfig:"USE_X_FORWARDED_FOR"`
 	Silent              bool          `envconfig:"SILENT"`
 	LogToStdout         bool          `envconfig:"LOGTOSTDOUT"`
