@@ -80,6 +80,7 @@ func NewConfig() *Config {
 		ReadTimeout:         30 * time.Second,
 		WriteTimeout:        15 * time.Second,
 		DB:                  freegeoip.MaxMindDB,
+		ASNDB:               "/usr/share/GeoIP/GeoLite2-ASN.mmdb",
 		UpdateInterval:      24 * time.Hour,
 		RetryInterval:       2 * time.Hour,
 		LogTimestamp:        true,
@@ -115,6 +116,7 @@ func (c *Config) AddFlags(fs *flag.FlagSet) {
 	fs.DurationVar(&c.WriteTimeout, "write-timeout", c.WriteTimeout, "Write timeout for HTTP and HTTPS client conns")
 	fs.StringVar(&c.PublicDir, "public", c.PublicDir, "Public directory to serve at the {prefix}/ endpoint")
 	fs.StringVar(&c.DB, "db", c.DB, "IP database file or URL")
+	fs.StringVar(&c.ASNDB, "asn-db", c.ASNDB, "Path to MaxMind GeoLite2-ASN database file")
 	fs.DurationVar(&c.UpdateInterval, "update", c.UpdateInterval, "Database update check interval")
 	fs.DurationVar(&c.RetryInterval, "retry", c.RetryInterval, "Max time to wait before retrying to download database")
 	fs.BoolVar(&c.UseXForwardedFor, "use-x-forwarded-for", c.UseXForwardedFor, "Use the X-Forwarded-For header when available (e.g. behind proxy)")
